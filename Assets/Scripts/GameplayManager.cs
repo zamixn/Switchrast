@@ -2,87 +2,74 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class GameplayManager : MonoBehaviour {
+public class GameplayManager : Singleton<GameplayManager>
+{
+    [SerializeField] private Grid Grid;
+    [SerializeField] private Requirements Requirements;
 
-	LevelLoader lvlLoader;
-	[HideInInspector]public GameText gText;
-	Grid grid;
-	Requirements reqs;
-	UI ui;
-	LevelSelect lvlSelect;
-	AdManager admanager;
-	SoundManager sm;
+    public bool isCurrComplete { get; private set; }
+    public int CurrentLevel { get; private set; }
+    private int LevelCount;
 
-	public bool isCurrComplete = false;
+    void Awake()
+    {
+        LevelCount = LevelLoader.Instance.LevelCount();
+    }
 
-	public int currLevel;
-	int levelCount;
+    void Start()
+    {
+        int lastLoadedLVL = SaveManager.Instance.GetInt("LastLoadedLVL", 0);
+        if (lastLoadedLVL != 0)
+            LoadLevel(lastLoadedLVL);
+    }
 
-	void Awake () {
-		lvlLoader = GameObject.FindObjectOfType<LevelLoader> ();
-		gText = GameObject.FindObjectOfType<GameText> ();
-		grid = GameObject.FindObjectOfType<Grid> ();
-		reqs = GameObject.FindObjectOfType<Requirements> ();
-		ui = GameObject.FindObjectOfType<UI>();
-		lvlSelect = GameObject.FindObjectOfType<LevelSelect> ();
-		levelCount = lvlLoader.LevelCount ();
-		admanager = GameObject.FindObjectOfType<AdManager> ();
-		sm = GameObject.FindObjectOfType<SoundManager> ();
-	}
+    public void CompleteLevel()
+    {
+        if (!isCurrComplete)
+        {
+            UIManager.Instance.CompleteLevel();
+            SaveManager.Instance.SetInt(CurrentLevel.ToString(), 1);
+            SaveManager.Instance.Save();
+            isCurrComplete = true;
+            AdManager.Instance.CheckAdShow();
+            SoundManager.Instance.Play(SoundManager.SoundType.DoubleBeep2);
+        }
+    }
 
-	void Start(){
-		int lastLoadedLVL = PlayerPrefs.GetInt ("LastLoadedLVL", 0);
-		if (lastLoadedLVL != 0)
-			LoadLevel (lastLoadedLVL);
-	}
+    public void LoadLevel(int levelNum)
+    {
+        CurrentLevel = levelNum;
+        string[] levelArr = LevelLoader.Instance.LoadLevel(levelNum);
+        Grid.LoadGrid(levelArr[0], true);
+        Requirements.LoadRequirements(levelArr[1]);
 
-	public void CompleteLevel(){
-		if (!isCurrComplete) {
-			gText.SetText ("level complete");
-			PlayerPrefs.SetInt (currLevel.ToString (), 1);
-			PlayerPrefs.Save ();
-			isCurrComplete = true;
-			lvlSelect.UpdateLVLSelection ();
-			admanager.CheckAdShow ();
-			sm.Play (SoundManager.Type.doublebeep2);
-		}
-	}
+        isCurrComplete = SaveManager.Instance.GetInt(levelNum.ToString(), 0) == 1;
+        UIManager.Instance.SetLevelText(levelNum, isCurrComplete);
+        SaveManager.Instance.SetInt("LastLoadedLVL", CurrentLevel);
+        SaveManager.Instance.Save();
+    }
 
-	public void LoadLevel(int levelNum){
-		currLevel = levelNum;
-		string[] levelArr = lvlLoader.LoadLevel (levelNum);
-		grid.LoadGrid (levelArr [0], true);
-		reqs.LoadRequirements (levelArr [1]);
-		ui.SetLevelNum (levelNum);
+    public void UseRequirement(int length)
+    {
+        Requirements.SubtractRequirement(length);
+    }
 
-		if (PlayerPrefs.GetInt (levelNum.ToString (), 0) == 1) {
-			gText.SetTextNoAnim ("level complete");
-			isCurrComplete = true;
-		} else {
-			gText.SetTextNoAnim ("");
-			isCurrComplete = false;
-		}
-		PlayerPrefs.SetInt ("LastLoadedLVL", currLevel);
-		PlayerPrefs.Save ();
-	}
+    public void Retry()
+    {
+        Grid.LoadCurrentGrid();
+        Requirements.LoadCurrentRequirements();
+        SoundManager.Instance.Play(SoundManager.SoundType.ShortBeep);
+    }
 
-	public void UseRequirement(int length){
-		reqs.SubtractRequirement (length);
-	}
+    public void LoadNextLevel()
+    {
+        if (SaveManager.Instance.GetInt(CurrentLevel.ToString(), 0) == 1 && CurrentLevel < LevelCount)
+            LoadLevel(CurrentLevel + 1);
+        SoundManager.Instance.Play(SoundManager.SoundType.ShortBeep);
+    }
 
-	public void Retry(){
-		grid.LoadCurrentGrid ();
-		reqs.LoadCurrentRequirements ();
-		sm.Play (SoundManager.Type.shortbeep);
-	}
-
-	public void LoadNextLevel(){
-		if(PlayerPrefs.GetInt(currLevel.ToString(), 0) == 1 && currLevel < levelCount)
-			LoadLevel (currLevel + 1);
-		sm.Play (SoundManager.Type.shortbeep);
-	}
-
-	public bool AreRequirementsMet(){
-		return reqs.AreRequirementsMet ();
-	}
+    public bool AreRequirementsMet()
+    {
+        return Requirements.AreRequirementsMet();
+    }
 }

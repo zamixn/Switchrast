@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Advertisements;
 
-public class AdManager : MonoBehaviour {
+public class AdManager : Singleton<AdManager> {
 
-	public int showAdEveryComp = 7;
+	[SerializeField] private int showAdEveryComp = 7;
 	int adCount;
 
 	void Start () {
-		adCount = PlayerPrefs.GetInt ("LeftToAd", showAdEveryComp + 1);
+		adCount = SaveManager.Instance.GetInt ("LeftToAd", showAdEveryComp + 1);
 	}
 
 	public void CheckAdShow(){
@@ -19,8 +19,8 @@ public class AdManager : MonoBehaviour {
 	}
 
 	void ShowAd(){
-		Advertisement.Show ();
+		//Advertisement.Show ();
 		adCount = showAdEveryComp + Random.Range (-1, 1);
-		PlayerPrefs.SetInt ("LeftToAd", adCount);
+		SaveManager.Instance.SetInt ("LeftToAd", adCount);
 	}
 }

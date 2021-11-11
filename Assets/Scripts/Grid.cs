@@ -3,143 +3,163 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class Grid : MonoBehaviour {
+public class Grid : MonoBehaviour
+{
+    [SerializeField] private LevelSelect LevelSelect;
+    [SerializeField] private GameObject GridObject;
 
-	GameplayManager gm;
-	SoundManager sm;
-	LevelSelect lvlSelect;
-	GameObject grid;
+    [SerializeField] private Color activatedCol, disabledCol;
 
-	List<Image> blocks = new List<Image>();
-	bool[] b = new bool[49];
+    private List<Image> Blocks = new List<Image>();
 
-	public Color activatedCol, disabledCol;
+    private const int GridSize = 7;
+    private bool[] GridFlags = new bool[GridSize * GridSize];
 
-	string currentGrid;
+    private string CurrentGrid;
 
-	void Awake () {
-		gm = GameObject.FindObjectOfType<GameplayManager> ();
-		sm = GameObject.FindObjectOfType<SoundManager> ();
-		grid = this.transform.Find("Grid").gameObject;
-		lvlSelect = GameObject.FindObjectOfType<LevelSelect> ();
-	}
+    void Start()
+    {
+        for (int i = 0; i < GridObject.transform.childCount; i++)
+        {
+            Blocks.Add(GridObject.transform.GetChild(i).GetComponent<Image>());
+        }
+        ClearGrid(true);
+    }
 
-	void Start(){
-		for (int i = 0; i < grid.transform.childCount; i++) {
-			blocks.Add (grid.transform.GetChild (i).GetComponent<Image> ());
-		}
-		ClearGrid (true);
-	}
+    void Update()
+    {
+        CheckInput();
+    }
 
-	void Update () {
-		CheckInput ();
-	}
+    //----------------------------------------------------------------------------------------
+    int currDragLen = 0;
+    int[] currDrag = new int[GridSize];
+    string tempGrid;
+    void CheckInput()
+    {
+        if (LevelSelect.showing)
+            return;
+        if (Input.GetMouseButtonDown(0))
+        {
+            currDragLen = 0;
+            for (int i = 0; i < 7; i++)
+                currDrag[i] = -1;
+            tempGrid = getGrid();
+        }
+        if (Input.GetMouseButtonUp(0))
+        {
+            ClearGrid(false);
+            if (ValidateInput())
+            {
+                GameplayManager.Instance.UseRequirement(currDragLen);
+                if (CheckGridLit())
+                    GameplayManager.Instance.CompleteLevel();
+                SoundManager.Instance.Play(SoundManager.SoundType.DoubleBeep);
+            }
+            else if (currDragLen > 0)
+            {
+                LoadGrid(tempGrid, false);
+                SoundManager.Instance.Play(SoundManager.SoundType.Invalidinput);
+            }
+        }
+        if (Input.GetMouseButton(0))
+        {
+            for (int i = 0; i < Blocks.Count; i++)
+            {
+                if (!GridFlags[i] && RectTransformUtility.RectangleContainsScreenPoint(Blocks[i].rectTransform, new Vector2(Input.mousePosition.x, Input.mousePosition.y)))
+                {
+                    if (Blocks[i].color == disabledCol)
+                        Blocks[i].color = activatedCol;
+                    else
+                        Blocks[i].color = disabledCol;
+                    GridFlags[i] = true;
+                    currDragLen++;
+                    if (currDragLen <= 7)
+                        currDrag[currDragLen - 1] = i;
+                    SoundManager.Instance.Play(SoundManager.SoundType.ShortBeep);
+                    break;
+                }
+            }
+        }
+    }
 
-	//----------------------------------------------------------------------------------------
-	int currDragLen = 0;
-	int[] currDrag = new int[7];
-	string tempGrid;
-	void CheckInput(){
-		if (lvlSelect.showing)
-			return;
-		if (Input.GetMouseButtonDown (0)) {
-			currDragLen = 0;
-			for (int i = 0; i < 7; i++)
-				currDrag [i] = -1;
-			tempGrid = getGrid ();
-		}
-		if (Input.GetMouseButtonUp (0)) {
-			ClearGrid (false);
-			if (ValidInput ()) {
-				gm.UseRequirement (currDragLen);
-				if (CheckGridLit ())
-					gm.CompleteLevel ();
-				sm.Play (SoundManager.Type.doublebeep);
-			} else if (currDragLen > 0) {
-				LoadGrid (tempGrid, false);
-				sm.Play (SoundManager.Type.invalidinput);
-			}
-		}
-		if (Input.GetMouseButton (0)) {
-			for (int i = 0; i < blocks.Count; i++) {
-				if (!b[i] && RectTransformUtility.RectangleContainsScreenPoint (blocks [i].rectTransform, new Vector2 (Input.mousePosition.x, Input.mousePosition.y))) {
-					if (blocks [i].color == disabledCol)
-						blocks [i].color = activatedCol;
-					else
-						blocks [i].color = disabledCol;
-					b [i] = true;
-					currDragLen++;
-					if(currDragLen <= 7)
-						currDrag [currDragLen - 1] = i;
-					sm.Play (SoundManager.Type.shortbeep);
-					break;
-				}
-			}
-		}
-	}
+    bool ValidateInput()
+    {
+        if (currDragLen < 3 || currDragLen > 7)
+            return false;
+        for (int i = 1; i < currDragLen; i++)
+        {
+            if (currDrag[1] == currDrag[0] + 1 || currDrag[1] == currDrag[0] - 1)
+            {
+                if (currDrag[i] != currDrag[i - 1] + 1 && currDrag[i] != currDrag[i - 1] - 1)
+                    return false;
+            }
+            else if (currDrag[1] == currDrag[0] + 7 || currDrag[1] == currDrag[0] - 7)
+            {
+                if (currDrag[i] != currDrag[i - 1] + 7 && currDrag[i] != currDrag[i - 1] - 7)
+                    return false;
+            }
+            else
+                return false;
+        }
+        return true;
+    }
+    //----------------------------------------------------------------------------------------
 
-	bool ValidInput(){
-		if(currDragLen < 3 || currDragLen > 7)
-			return false;
-		for (int i = 1; i < currDragLen; i++) {
-			if (currDrag [1] == currDrag [0] + 1 || currDrag [1] == currDrag [0] - 1) {
-				if (currDrag [i] != currDrag [i - 1] + 1 && currDrag [i] != currDrag [i - 1] - 1)
-					return false;
-			} else if (currDrag [1] == currDrag [0] + 7 || currDrag [1] == currDrag [0] - 7) {
-				if (currDrag [i] != currDrag [i - 1] + 7 && currDrag [i] != currDrag [i - 1] - 7)
-					return false;
-			} else
-				return false;
-		}
-		return true;
-	}
-	//----------------------------------------------------------------------------------------
+    public void LoadGrid(string blockStates, bool assignCurr)
+    {
+        if (assignCurr)
+            CurrentGrid = blockStates;
+        string[] bStates = blockStates.Split(' ');
+        for (int i = 0; i < bStates.Length; i++)
+        {
+            if (bStates[i] == "0")
+                Blocks[i].color = disabledCol;
+            else
+                Blocks[i].color = activatedCol;
+        }
+        ClearGrid(false);
+    }
 
-	public void LoadGrid(string blockStates, bool assignCurr){
-		if(assignCurr)
-			currentGrid = blockStates;
-		string[] bStates = blockStates.Split (' ');
-		for (int i = 0; i < bStates.Length; i++) {
-			if (bStates [i] == "0")
-				blocks [i].color = disabledCol;
-			else
-				blocks [i].color = activatedCol;
-		}
-		ClearGrid (false);
-	}
+    public void LoadCurrentGrid()
+    {
+        LoadGrid(CurrentGrid, false);
+    }
 
-	public void LoadCurrentGrid(){
-		LoadGrid (currentGrid, false);
-	}
+    string getGrid()
+    {
+        string rs = "";
+        for (int i = 0; i < Blocks.Count - 1; i++)
+        {
+            if (Blocks[i].color == activatedCol)
+                rs += "1 ";
+            else
+                rs += "0 ";
+        }
+        if (Blocks[Blocks.Count - 1].color == activatedCol)
+            rs += "1";
+        else
+            rs += "0";
+        return rs;
+    }
 
-	string getGrid(){
-		string rs = "";
-		for (int i = 0; i < blocks.Count - 1; i++) {
-			if (blocks [i].color == activatedCol)
-				rs += "1 ";
-			else
-				rs += "0 ";
-		}
-		if (blocks [blocks.Count - 1].color == activatedCol)
-			rs += "1";
-		else
-			rs += "0";
-		return rs;
-	}
+    void ClearGrid(bool turnOff)
+    {
+        for (int i = 0; i < Blocks.Count; i++)
+        {
+            if (turnOff)
+                Blocks[i].color = disabledCol;
+            GridFlags[i] = false;
+        }
+    }
 
-	void ClearGrid(bool turnOff){
-		for (int i = 0; i < blocks.Count; i++) {
-			if(turnOff)
-				blocks [i].color = disabledCol;
-			b [i] = false;
-		}
-	}
-
-	public bool CheckGridLit(){
-		for (int i = 0; i < blocks.Count; i++) {
-			if (blocks [i].color == disabledCol)
-				return false;
-		}
-		return gm.AreRequirementsMet();
-	}
+    public bool CheckGridLit()
+    {
+        for (int i = 0; i < Blocks.Count; i++)
+        {
+            if (Blocks[i].color == disabledCol)
+                return false;
+        }
+        return GameplayManager.Instance.AreRequirementsMet();
+    }
 }
