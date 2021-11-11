@@ -37,7 +37,7 @@ public class Grid : MonoBehaviour
     string tempGrid;
     void CheckInput()
     {
-        if (LevelSelect.showing)
+        if (LevelSelect.Showing)
             return;
         if (Input.GetMouseButtonDown(0))
         {

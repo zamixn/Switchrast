@@ -5,11 +5,10 @@ using UnityEngine.UI;
 
 public class LevelSelect : MonoBehaviour
 {
-    [SerializeField] private LevelSelectButton loadLVLButton;
-    [SerializeField] private LevelSelectButton loadLVLButton2;
-    [SerializeField] private RectTransform contents;
+    [SerializeField] private LevelSelectButton LoadLVLButtonPrefab;
+    [SerializeField] private RectTransform Contents;
 
-    [HideInInspector] public bool showing = true;
+    [HideInInspector] public bool Showing = true;
 
     [SerializeField] private Color completedColor;
 
@@ -28,12 +27,10 @@ public class LevelSelect : MonoBehaviour
     {
         levelCount = LevelLoader.Instance.LevelCount();
         var contentsLength = SizeDelta * (Mathf.CeilToInt((levelCount) / (float)RowCount)) + HorizontalPadding;
-        contents.sizeDelta = new Vector2(contentsLength, ContentHeight);
+        Contents.sizeDelta = new Vector2(contentsLength, ContentHeight);
 
         SpawnSelections();
 
-        Destroy(loadLVLButton);
-        Destroy(loadLVLButton2);
         UpdateLVLSelection();
 
         showingPos = this.transform.position;
@@ -58,25 +55,21 @@ public class LevelSelect : MonoBehaviour
 
     public void ToogleLevelSelect()
     {
-        this.transform.position = showing ? hiddenPos : showingPos;
-        HUDManager.Instance.SetLevelSelectButtons(showing);
-        showing = !showing;
+        this.transform.position = Showing ? hiddenPos : showingPos;
+        HUDManager.Instance.SetLevelSelectButtons(Showing);
+        Showing = !Showing;
     }
 
     void SpawnSelections()
     {
-        Vector3 startPos = loadLVLButton.transform.position;
-        float offset = loadLVLButton2.transform.position.x - startPos.x;
         for (int i = 0; i <= levelCount / RowCount; i++)
         {
-            Vector3 newPos = startPos;
-            newPos.x += offset * i;
             for (int j = 0; j < RowCount; j++)
             {
-                LevelSelectButton newButt = Instantiate(loadLVLButton, newPos, Quaternion.identity, contents);
+                LevelSelectButton newButt = Instantiate(LoadLVLButtonPrefab, Contents);
                 int t = i * RowCount + j + 1;
                 newButt.Initialize(
-                    loadLVLButton.name + t.ToString(),
+                    LoadLVLButtonPrefab.name + t.ToString(),
                     () =>
                     {
                         GameplayManager.Instance.LoadLevel(t);
@@ -85,7 +78,6 @@ public class LevelSelect : MonoBehaviour
                     },
                     t.ToString());
                 lvlLoad.Add(newButt);
-                newPos.y -= offset;
                 if (t >= levelCount)
                     return;
             }
